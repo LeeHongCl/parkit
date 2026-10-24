@@ -5,7 +5,7 @@ class MainShell extends StatelessWidget {
   final Widget child;
   const MainShell({super.key, required this.child});
 
-  static const _tabs = ['/home', '/favorites', '/settings'];
+  static const _tabs = ['/home', '/search', '/favorites', '/settings'];
 
   int _indexForLocation(String location) {
     final index = _tabs.indexWhere((tab) => location.startsWith(tab));
@@ -27,6 +27,11 @@ class MainShell extends StatelessWidget {
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home),
             label: '홈',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.search_outlined),
+            selectedIcon: Icon(Icons.search),
+            label: '검색',
           ),
           NavigationDestination(
             icon: Icon(Icons.favorite_border),

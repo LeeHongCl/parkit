@@ -5,6 +5,10 @@ import '../../data/models/meta_result.dart';
 import '../../data/models/recommend_result.dart';
 import '../../data/models/road_nearby_result.dart';
 import '../../data/parking_api_client.dart';
+import '../../domain/recommend_weights.dart';
+import 'settings_providers.dart';
+
+export '../../domain/recommend_weights.dart';
 
 final parkingApiClientProvider = Provider<ParkingApiClient>((ref) => ParkingApiClient());
 
@@ -57,32 +61,10 @@ final arrivalAtProvider = NotifierProvider<ArrivalAtNotifier, DateTime?>(
 );
 
 // --- 요금/거리/전기차 중요도 (서버가 비율로 정규화하므로 절대값 자체는 중요치 않음) ---
-class RecommendWeights {
-  final double fee;
-  final double distance;
-  final double ev;
-
-  const RecommendWeights({required this.fee, required this.distance, required this.ev});
-
-  RecommendWeights copyWith({double? fee, double? distance, double? ev}) => RecommendWeights(
-        fee: fee ?? this.fee,
-        distance: distance ?? this.distance,
-        ev: ev ?? this.ev,
-      );
-
-  bool get hasAnyPositive => fee > 0 || distance > 0 || ev > 0;
-
-  @override
-  bool operator ==(Object other) =>
-      other is RecommendWeights && other.fee == fee && other.distance == distance && other.ev == ev;
-
-  @override
-  int get hashCode => Object.hash(fee, distance, ev);
-}
-
+// 초기값은 설정 탭에서 저장한 기본 중요도를 사용한다.
 class WeightsNotifier extends Notifier<RecommendWeights> {
   @override
-  RecommendWeights build() => const RecommendWeights(fee: 0.4, distance: 0.3, ev: 0.1);
+  RecommendWeights build() => ref.read(defaultWeightsProvider);
 
   void setFee(double value) => state = state.copyWith(fee: value);
   void setDistance(double value) => state = state.copyWith(distance: value);

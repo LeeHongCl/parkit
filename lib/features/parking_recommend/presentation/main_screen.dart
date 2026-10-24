@@ -6,6 +6,7 @@ import '../../../core/location/location_service.dart';
 import '../data/daegu_landmarks.dart';
 import '../data/models/lat_lng_point.dart';
 import '../data/parking_api_client.dart';
+import 'providers/favorites_providers.dart';
 import 'providers/parking_recommend_providers.dart';
 import 'widgets/condition_panel.dart';
 import 'widgets/parking_map.dart';
@@ -225,6 +226,7 @@ class _ResultsSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dataUpdatedDate = ref.watch(metaResultProvider).value?.displayDate;
+    final favorites = ref.watch(favoritesProvider);
     return recommendAsync.when(
       data: (result) {
         if (result.items.isEmpty) {
@@ -241,7 +243,9 @@ class _ResultsSection extends ConsumerWidget {
                 child: ResultCard(
                   item: item,
                   selected: selectedId == item.id,
+                  isFavorite: favorites.any((f) => f.id == item.id),
                   onTap: () => ref.read(selectedResultIdProvider.notifier).select(item.id),
+                  onToggleFavorite: () => ref.read(favoritesProvider.notifier).toggle(item),
                   onDetail: () => context.push('/detail', extra: {
                     'item': item,
                     'durationMinutes': ref.read(durationMinutesProvider),

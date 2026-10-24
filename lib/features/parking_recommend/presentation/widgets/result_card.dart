@@ -6,15 +6,19 @@ import '../../domain/format.dart';
 class ResultCard extends StatelessWidget {
   final RecommendItem item;
   final bool selected;
+  final bool isFavorite;
   final VoidCallback onTap;
   final VoidCallback onDetail;
+  final VoidCallback onToggleFavorite;
 
   const ResultCard({
     super.key,
     required this.item,
     required this.selected,
+    required this.isFavorite,
     required this.onTap,
     required this.onDetail,
+    required this.onToggleFavorite,
   });
 
   @override
@@ -56,6 +60,12 @@ class ResultCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                  ),
+                  IconButton(
+                    icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border),
+                    color: isFavorite ? theme.colorScheme.error : null,
+                    onPressed: onToggleFavorite,
+                    tooltip: '즐겨찾기',
                   ),
                   TextButton(onPressed: onDetail, child: const Text('자세히 보기')),
                 ],

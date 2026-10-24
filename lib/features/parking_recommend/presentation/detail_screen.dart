@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/recommend_item.dart';
 import '../domain/format.dart';
+import 'providers/favorites_providers.dart';
 
 /// 추천 응답에 이미 들어 있는 값으로만 그린다. 추가 API 호출은 하지 않는다(명세 4.4).
-class DetailScreen extends StatelessWidget {
+class DetailScreen extends ConsumerWidget {
   final RecommendItem item;
   final int durationMinutes;
   final String? dataUpdatedDate;
@@ -17,10 +19,21 @@ class DetailScreen extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final isFavorite = ref.watch(favoritesProvider).any((f) => f.id == item.id);
     return Scaffold(
-      appBar: AppBar(title: Text(item.name)),
+      appBar: AppBar(
+        title: Text(item.name),
+        actions: [
+          IconButton(
+            icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border),
+            color: isFavorite ? theme.colorScheme.error : null,
+            tooltip: '즐겨찾기',
+            onPressed: () => ref.read(favoritesProvider.notifier).toggle(item),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
