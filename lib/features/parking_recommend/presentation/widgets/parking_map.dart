@@ -1,13 +1,13 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_naver_map/flutter_naver_map.dart';
 
 import '../../data/models/lat_lng_point.dart';
 import '../../data/models/recommend_item.dart';
 import '../../data/models/road_nearby_result.dart';
 
-/// 지도 패키지(google_maps_flutter)에 의존하는 코드는 이 파일에만 둔다.
+/// 지도 패키지(flutter_naver_map)에 의존하는 코드는 이 파일에만 둔다.
 /// 다른 화면/위젯은 이 위젯을 통해서만 지도 기능을 사용한다.
 class ParkingMap extends StatefulWidget {
   final LatLngPoint center;
@@ -36,15 +36,9 @@ class ParkingMap extends StatefulWidget {
 }
 
 class _ParkingMapState extends State<ParkingMap> {
-  GoogleMapController? _controller;
-  Set<Marker> _markers = {};
-  bool _isBuildingMarkers = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _rebuildMarkers();
-  }
+  NaverMapController? _controller;
+  bool _isSyncing = false;
+  bool _pendingResync = false;
 
   @override
   void didUpdateWidget(covariant ParkingMap oldWidget) {
@@ -52,25 +46,39 @@ class _ParkingMapState extends State<ParkingMap> {
     if (oldWidget.items != widget.items ||
         oldWidget.selectedId != widget.selectedId ||
         oldWidget.roadResult != widget.roadResult ||
-        oldWidget.center != widget.center) {
-      _rebuildMarkers();
+        oldWidget.center != widget.center ||
+        oldWidget.radiusMeters != widget.radiusMeters) {
+      _syncOverlays();
     }
     if (oldWidget.selectedId != widget.selectedId && widget.selectedId != null) {
       _animateToSelected();
     }
   }
 
-  Future<void> _rebuildMarkers() async {
-    if (_isBuildingMarkers) return;
-    _isBuildingMarkers = true;
+  Future<void> _syncOverlays() async {
+    final controller = _controller;
+    if (controller == null) return;
 
-    final markers = <Marker>{
-      Marker(
-        markerId: const MarkerId('search-center'),
-        position: LatLng(widget.center.lat, widget.center.lng),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-        zIndexInt: 1,
-        infoWindow: const InfoWindow(title: '검색 중심'),
+    if (_isSyncing) {
+      _pendingResync = true;
+      return;
+    }
+    _isSyncing = true;
+
+    final overlays = <NAddableOverlay>{
+      NCircleOverlay(
+        id: 'search-radius',
+        center: NLatLng(widget.center.lat, widget.center.lng),
+        radius: widget.radiusMeters.toDouble(),
+        color: Colors.blueAccent.withValues(alpha: 0.08),
+        outlineColor: Colors.blueAccent,
+        outlineWidth: 1,
+      ),
+      NMarker(
+        id: 'search-center',
+        position: NLatLng(widget.center.lat, widget.center.lng),
+        iconTintColor: Colors.blue,
+        caption: const NOverlayCaption(text: '검색 중심'),
       ),
     };
 
@@ -78,39 +86,52 @@ class _ParkingMapState extends State<ParkingMap> {
       final selected = widget.selectedId == item.id;
       final color = item.rank == 1 ? Colors.green : Colors.red;
       final icon = await _numberedMarkerIcon(rank: item.rank, color: color, selected: selected);
-      markers.add(
-        Marker(
-          markerId: MarkerId('parking-${item.id}'),
-          position: LatLng(item.location.lat, item.location.lng),
-          icon: icon,
-          zIndexInt: selected ? 10 : 2,
-          infoWindow: InfoWindow(title: '${item.rank}위 · ${item.name}'),
-          onTap: () => widget.onSelectItem(item.id),
-        ),
+      final marker = NMarker(
+        id: 'parking-${item.id}',
+        position: NLatLng(item.location.lat, item.location.lng),
+        icon: icon,
+        caption: NOverlayCaption(text: item.name),
       );
+      marker.setOnTapListener((_) => widget.onSelectItem(item.id));
+      overlays.add(marker);
     }
 
     final roadResult = widget.roadResult;
     if (roadResult != null) {
       for (var i = 0; i < roadResult.cameras.length; i++) {
         final camera = roadResult.cameras[i];
-        markers.add(
-          Marker(
-            markerId: MarkerId('camera-$i'),
-            position: LatLng(camera.lat, camera.lng),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
-            zIndexInt: 0,
-            infoWindow: InfoWindow(title: camera.place ?? camera.roadName ?? '단속카메라'),
-          ),
-        );
+        overlays.add(NMarker(
+          id: 'camera-$i',
+          position: NLatLng(camera.lat, camera.lng),
+          iconTintColor: Colors.purple,
+          caption: NOverlayCaption(text: camera.place ?? camera.roadName ?? '단속카메라'),
+        ));
+      }
+      for (var i = 0; i < roadResult.spots.length; i++) {
+        final spot = roadResult.spots[i];
+        overlays.add(NCircleOverlay(
+          id: 'spot-$i',
+          center: NLatLng(spot.lat, spot.lng),
+          radius: 10,
+          color: Colors.orange.withValues(alpha: 0.6),
+          outlineWidth: 0,
+        ));
       }
     }
 
-    if (!mounted) return;
-    setState(() {
-      _markers = markers;
-      _isBuildingMarkers = false;
-    });
+    if (!mounted) {
+      _isSyncing = false;
+      return;
+    }
+
+    await controller.clearOverlays();
+    await controller.addOverlayAll(overlays);
+
+    _isSyncing = false;
+    if (_pendingResync) {
+      _pendingResync = false;
+      await _syncOverlays();
+    }
   }
 
   Future<void> _animateToSelected() async {
@@ -118,12 +139,12 @@ class _ParkingMapState extends State<ParkingMap> {
     if (controller == null) return;
     final item = widget.items.where((e) => e.id == widget.selectedId).firstOrNull;
     if (item == null) return;
-    await controller.animateCamera(
-      CameraUpdate.newLatLng(LatLng(item.location.lat, item.location.lng)),
+    await controller.updateCamera(
+      NCameraUpdate.scrollAndZoomTo(target: NLatLng(item.location.lat, item.location.lng)),
     );
   }
 
-  Future<BitmapDescriptor> _numberedMarkerIcon({
+  Future<NOverlayImage> _numberedMarkerIcon({
     required int rank,
     required Color color,
     required bool selected,
@@ -165,55 +186,26 @@ class _ParkingMapState extends State<ParkingMap> {
     final image = await picture.toImage(size.toInt(), size.toInt());
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     final bytes = byteData!.buffer.asUint8List();
-    return BitmapDescriptor.bytes(bytes, width: size, height: size);
-  }
-
-  Set<Circle> _buildCircles() {
-    final circles = <Circle>{
-      Circle(
-        circleId: const CircleId('search-radius'),
-        center: LatLng(widget.center.lat, widget.center.lng),
-        radius: widget.radiusMeters.toDouble(),
-        strokeWidth: 1,
-        strokeColor: Colors.blueAccent,
-        fillColor: Colors.blueAccent.withValues(alpha: 0.08),
-      ),
-    };
-
-    final roadResult = widget.roadResult;
-    if (roadResult != null) {
-      for (var i = 0; i < roadResult.spots.length; i++) {
-        final spot = roadResult.spots[i];
-        circles.add(
-          Circle(
-            circleId: CircleId('spot-$i'),
-            center: LatLng(spot.lat, spot.lng),
-            radius: 10,
-            strokeWidth: 0,
-            fillColor: Colors.orange.withValues(alpha: 0.6),
-          ),
-        );
-      }
-    }
-
-    return circles;
+    return NOverlayImage.fromByteArray(bytes, cacheKey: 'rank-$rank-$selected');
   }
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: widget.height,
-      child: GoogleMap(
-        initialCameraPosition: CameraPosition(
-          target: LatLng(widget.center.lat, widget.center.lng),
-          zoom: 14,
+      child: NaverMap(
+        options: NaverMapViewOptions(
+          initialCameraPosition: NCameraPosition(
+            target: NLatLng(widget.center.lat, widget.center.lng),
+            zoom: 14,
+          ),
         ),
-        onMapCreated: (controller) => _controller = controller,
-        onTap: (position) => widget.onTapMap(LatLngPoint(lat: position.latitude, lng: position.longitude)),
-        markers: _markers,
-        circles: _buildCircles(),
-        myLocationButtonEnabled: false,
-        zoomControlsEnabled: false,
+        onMapReady: (controller) {
+          _controller = controller;
+          _syncOverlays();
+        },
+        onMapTapped: (point, latLng) =>
+            widget.onTapMap(LatLngPoint(lat: latLng.latitude, lng: latLng.longitude)),
       ),
     );
   }

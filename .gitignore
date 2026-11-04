@@ -1,3 +1,6 @@
+# Naver Map 키(Client ID/Secret). 절대 커밋하지 않는다.
+lib/core/config/naver_map_client_id.dart
+
 # Miscellaneous
 *.class
 *.log
