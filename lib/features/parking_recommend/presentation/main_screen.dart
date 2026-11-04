@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/location/location_service.dart';
 import '../data/daegu_landmarks.dart';
 import '../data/models/lat_lng_point.dart';
+import '../data/models/meta_result.dart';
+import '../data/models/recommend_result.dart';
 import '../data/parking_api_client.dart';
 import 'providers/favorites_providers.dart';
 import 'providers/parking_recommend_providers.dart';
@@ -220,7 +222,7 @@ class _MapIconButton extends StatelessWidget {
 }
 
 class _ResultsSection extends ConsumerWidget {
-  final AsyncValue recommendAsync;
+  final AsyncValue<RecommendResult> recommendAsync;
   final int? selectedId;
   final Map<int, GlobalKey> cardKeys;
 
@@ -304,7 +306,7 @@ class _ResultsSection extends ConsumerWidget {
 }
 
 class _MetaFooter extends StatelessWidget {
-  final AsyncValue metaAsync;
+  final AsyncValue<MetaResult?> metaAsync;
   const _MetaFooter({required this.metaAsync});
 
   @override
