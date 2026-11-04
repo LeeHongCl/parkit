@@ -8,6 +8,7 @@ import '../data/models/lat_lng_point.dart';
 import '../data/parking_api_client.dart';
 import 'providers/favorites_providers.dart';
 import 'providers/parking_recommend_providers.dart';
+import 'widgets/ai_prompt_entry_box.dart';
 import 'widgets/condition_panel.dart';
 import 'widgets/parking_map.dart';
 import 'widgets/result_card.dart';
@@ -109,6 +110,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           Expanded(
             child: ListView(
               children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: AiPromptEntryBox(
+                    onSubmit: (prompt) => context.push('/chat', extra: prompt),
+                  ),
+                ),
                 SizedBox(
                   height: 44,
                   child: ListView.separated(

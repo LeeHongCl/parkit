@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/parking_recommend/data/models/recommend_item.dart';
+import '../../features/parking_recommend/presentation/chat_screen.dart';
 import '../../features/parking_recommend/presentation/detail_screen.dart';
 import '../../features/parking_recommend/presentation/favorites_screen.dart';
 import '../../features/parking_recommend/presentation/main_screen.dart';
@@ -32,6 +33,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             dataUpdatedDate: extra['dataUpdatedDate'] as String?,
           );
         },
+      ),
+      GoRoute(
+        path: '/chat',
+        builder: (context, state) => ChatScreen(initialPrompt: state.extra as String?),
       ),
     ],
   );
